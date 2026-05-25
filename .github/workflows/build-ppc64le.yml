@@ -69,6 +69,8 @@ jobs:
             tar \
             gzip \
             libicu-dev \
+            libicu-dev:ppc64el \
+            libpng-dev:ppc64el \
             libfontconfig1-dev:ppc64el \
             libfreetype-dev:ppc64el \
             libharfbuzz-dev:ppc64el \
@@ -140,27 +142,34 @@ jobs:
             skia_use_freetype=true
             skia_use_system_freetype2=false
             skia_use_system_libjpeg_turbo=false
-            skia_use_system_libpng=false
+            skia_use_system_libpng=true
             skia_use_system_libwebp=false
-            skia_use_system_zlib=false
-            skia_use_system_icu=false
+            skia_use_system_zlib=true
+            skia_use_system_icu=true
             extra_cflags=[
               "-I/usr/include/freetype2",
               "-I/usr/include/harfbuzz",
               "-I/usr/include/fontconfig",
+              "-I/usr/include/libpng16",
               "-fPIC"
             ]
             extra_cflags_cc=[
               "-I/usr/include/freetype2",
               "-I/usr/include/harfbuzz",
               "-I/usr/include/fontconfig",
+              "-I/usr/include/libpng16",
               "-fPIC"
             ]
             extra_ldflags=[
               "-L/usr/lib/powerpc64le-linux-gnu",
               "-L/lib/powerpc64le-linux-gnu",
               "-Wl,-rpath-link,/usr/lib/powerpc64le-linux-gnu",
-              "-Wl,-rpath-link,/lib/powerpc64le-linux-gnu"
+              "-Wl,-rpath-link,/lib/powerpc64le-linux-gnu",
+              "-lpng16",
+              "-lz",
+              "-licuuc",
+              "-licui18n",
+              "-licudata"
             ]
           '
 
@@ -173,8 +182,6 @@ jobs:
           fi
 
           test -f third_party/externals/icu/scripts/make_data_assembly.py
-          test -f third_party/externals/icu/source/common/loclikely.cpp || true
-          test -f third_party/externals/icu/source/common/emojiprops.cpp || true
           find third_party/externals/libpng -name '*powerpc*' -o -name '*vsx*'
 
           python3 bin/fetch-gn
