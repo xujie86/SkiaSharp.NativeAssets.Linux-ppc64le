@@ -145,16 +145,16 @@ jobs:
             skia_use_system_zlib=false
             skia_use_system_icu=false
             extra_cflags=[
-              "-I/usr/include",
               "-I/usr/include/freetype2",
               "-I/usr/include/harfbuzz",
+              "-I/usr/include/fontconfig",
               "-I/usr/include/libpng16",
               "-fPIC"
             ]
             extra_cflags_cc=[
-              "-I/usr/include",
               "-I/usr/include/freetype2",
               "-I/usr/include/harfbuzz",
+              "-I/usr/include/fontconfig",
               "-I/usr/include/libpng16",
               "-fPIC"
             ]
