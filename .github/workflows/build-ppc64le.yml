@@ -148,14 +148,12 @@ jobs:
               "-I/usr/include/freetype2",
               "-I/usr/include/harfbuzz",
               "-I/usr/include/fontconfig",
-              "-I/usr/include/libpng16",
               "-fPIC"
             ]
             extra_cflags_cc=[
               "-I/usr/include/freetype2",
               "-I/usr/include/harfbuzz",
               "-I/usr/include/fontconfig",
-              "-I/usr/include/libpng16",
               "-fPIC"
             ]
             extra_ldflags=[
