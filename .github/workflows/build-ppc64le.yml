@@ -167,12 +167,10 @@ jobs:
           cd externals/skia
           python3 tools/git-sync-deps
 
-          if [ ! -f third_party/externals/icu/scripts/make_data_assembly.py ]; then
-            rm -rf third_party/externals/icu
-            git clone --depth 1 https://chromium.googlesource.com/chromium/deps/icu.git third_party/externals/icu
-          fi
-
           test -f third_party/externals/icu/scripts/make_data_assembly.py
+          test -f third_party/externals/icu/source/common/loclikely.cpp
+          test -f third_party/externals/icu/source/common/emojiprops.cpp
+          find third_party/externals/libpng -name '*powerpc*' -o -name '*vsx*'
 
           python3 bin/fetch-gn
           ./bin/gn gen ../../out/linux-ppc64le --args="$GN_ARGS"
