@@ -213,31 +213,36 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat > pkg/${PKG_ID}.nuspec <<EOF
-          <?xml version="1.0" encoding="utf-8"?>
-          <package>
-            <metadata>
-              <id>${PKG_ID}</id>
-              <version>${{ steps.meta.outputs.package_version }}</version>
-              <authors>Repobot</authors>
-              <owners>${{ github.repository_owner }}</owners>
-              <license type="expression">MIT</license>
-              <projectUrl>https://github.com/mono/SkiaSharp</projectUrl>
-              <repository type="git" url="https://github.com/mono/SkiaSharp" commit="$(cd src && git rev-parse HEAD)" />
-              <description>Unofficial SkiaSharp Linux native assets for linux-ppc64le, built from mono/SkiaSharp ${{ steps.meta.outputs.git_ref }}.</description>
-              <tags>skiasharp skia native linux ppc64le powerpc</tags>
-              <dependencies>
-                <group targetFramework="net6.0" />
-              </dependencies>
-            </metadata>
-            <files>
-              <file src="runtimes/linux-ppc64le/native/libSkiaSharp.so" target="runtimes/linux-ppc64le/native/libSkiaSharp.so" />
-            </files>
-          </package>
+          cat > pkg/${PKG_ID}.csproj <<EOF
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <TargetFramework>net6.0</TargetFramework>
+              <PackageId>${PKG_ID}</PackageId>
+              <Version>${{ steps.meta.outputs.package_version }}</Version>
+              <Authors>Repobot</Authors>
+              <Company>${{ github.repository_owner }}</Company>
+              <PackageLicenseExpression>MIT</PackageLicenseExpression>
+              <PackageProjectUrl>https://github.com/mono/SkiaSharp</PackageProjectUrl>
+              <Description>Unofficial SkiaSharp Linux native assets for linux-ppc64le, built from mono/SkiaSharp ${{ steps.meta.outputs.git_ref }}.</Description>
+              <PackageTags>skiasharp skia native linux ppc64le powerpc</PackageTags>
+              <RepositoryType>git</RepositoryType>
+              <RepositoryUrl>https://github.com/mono/SkiaSharp</RepositoryUrl>
+              <RepositoryCommit>$(cd src && git rev-parse HEAD)</RepositoryCommit>
+              <IncludeBuildOutput>false</IncludeBuildOutput>
+              <NoBuild>true</NoBuild>
+            </PropertyGroup>
+
+            <ItemGroup>
+              <None Include="runtimes/linux-ppc64le/native/libSkiaSharp.so"
+                    Pack="true"
+                    PackagePath="runtimes/linux-ppc64le/native/libSkiaSharp.so" />
+            </ItemGroup>
+          </Project>
           EOF
 
           cd pkg
-          dotnet nuget pack ${PKG_ID}.nuspec \
+          dotnet pack ${PKG_ID}.csproj \
+            --configuration Release \
             --output ../artifacts \
             --verbosity normal
 
