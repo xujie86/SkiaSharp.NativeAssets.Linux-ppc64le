@@ -34,7 +34,7 @@ jobs:
       DOTNET_ROOT: /root/.dotnet
       PATH: /root/.dotnet:/root/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       SYSROOT: /usr/powerpc64le-linux-gnu
-      PKG_CONFIG_SYSROOT_DIR: /usr/powerpc64le-linux-gnu
+      PKG_CONFIG_SYSROOT_DIR: ""
       PKG_CONFIG_LIBDIR: /usr/lib/powerpc64le-linux-gnu/pkgconfig:/usr/share/pkgconfig
       PKG_CONFIG_PATH: ""
 
@@ -145,15 +145,24 @@ jobs:
             skia_use_system_zlib=false
             skia_use_system_icu=false
             extra_cflags=[
-              "--sysroot=/usr/powerpc64le-linux-gnu",
+              "-I/usr/include",
+              "-I/usr/include/freetype2",
+              "-I/usr/include/harfbuzz",
+              "-I/usr/include/libpng16",
               "-fPIC"
             ]
             extra_cflags_cc=[
-              "--sysroot=/usr/powerpc64le-linux-gnu",
+              "-I/usr/include",
+              "-I/usr/include/freetype2",
+              "-I/usr/include/harfbuzz",
+              "-I/usr/include/libpng16",
               "-fPIC"
             ]
             extra_ldflags=[
-              "--sysroot=/usr/powerpc64le-linux-gnu"
+              "-L/usr/lib/powerpc64le-linux-gnu",
+              "-L/lib/powerpc64le-linux-gnu",
+              "-Wl,-rpath-link,/usr/lib/powerpc64le-linux-gnu",
+              "-Wl,-rpath-link,/lib/powerpc64le-linux-gnu"
             ]
           '
 
