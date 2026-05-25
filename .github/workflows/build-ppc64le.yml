@@ -247,7 +247,7 @@ jobs:
             --verbosity normal
 
       - name: Upload nupkg artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: SkiaSharp.NativeAssets.Linux-${{ steps.meta.outputs.package_version }}
           path: artifacts/*.nupkg
