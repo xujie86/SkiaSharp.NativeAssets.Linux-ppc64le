@@ -1,0 +1,238 @@
+name: build SkiaSharp.NativeAssets.Linux ppc64le
+
+on:
+  workflow_dispatch:
+    inputs:
+      skiasharp_ref:
+        description: "SkiaSharp version/ref, e.g. v3.119.2, 3.119.2, main"
+        required: true
+        default: "v3.119.2"
+      publish_github_packages:
+        description: "Publish to GitHub Packages"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container:
+      image: debian:13
+
+    env:
+      RID: linux-ppc64le
+      SKIA_CPU: ppc64
+      CC: powerpc64le-linux-gnu-gcc
+      CXX: powerpc64le-linux-gnu-g++
+      AR: powerpc64le-linux-gnu-ar
+      STRIP: powerpc64le-linux-gnu-strip
+      PKG_ID: SkiaSharp.NativeAssets.Linux
+      DOTNET_ROOT: /root/.dotnet
+      PATH: /root/.dotnet:/root/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      SYSROOT: /usr/powerpc64le-linux-gnu
+      PKG_CONFIG_SYSROOT_DIR: /usr/powerpc64le-linux-gnu
+      PKG_CONFIG_LIBDIR: /usr/lib/powerpc64le-linux-gnu/pkgconfig:/usr/share/pkgconfig
+      PKG_CONFIG_PATH: ""
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          set -eux
+
+          dpkg --add-architecture ppc64el
+
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            curl \
+            git \
+            python3 \
+            python3-pip \
+            build-essential \
+            clang \
+            lld \
+            ninja-build \
+            cmake \
+            pkg-config \
+            gcc-powerpc64le-linux-gnu \
+            g++-powerpc64le-linux-gnu \
+            libc6-dev-ppc64el-cross \
+            zip \
+            unzip \
+            file \
+            binutils \
+            findutils \
+            tar \
+            gzip \
+            libicu-dev \
+            libfontconfig1-dev:ppc64el \
+            libfreetype-dev:ppc64el \
+            libharfbuzz-dev:ppc64el \
+            libgl1-mesa-dev:ppc64el \
+            libegl1-mesa-dev:ppc64el \
+            libvulkan-dev:ppc64el \
+            libx11-dev:ppc64el \
+            libxext-dev:ppc64el \
+            libxrandr-dev:ppc64el \
+            libxinerama-dev:ppc64el \
+            libxcursor-dev:ppc64el \
+            libxi-dev:ppc64el
+
+          curl -fsSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
+          chmod +x dotnet-install.sh
+          ./dotnet-install.sh --channel 10.0.1xx --quality daily --install-dir "$DOTNET_ROOT"
+          dotnet --info
+
+      - name: Resolve SkiaSharp ref and version
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REF="${{ inputs.skiasharp_ref }}"
+          if [[ "$REF" =~ ^[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+            GIT_REF="v$REF"
+            VERSION="$REF"
+          elif [[ "$REF" =~ ^v([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+            GIT_REF="$REF"
+            VERSION="${BASH_REMATCH[1]}"
+          else
+            GIT_REF="$REF"
+            VERSION="0.0.0-${REF//\//-}"
+          fi
+
+          PACKAGE_VERSION="$VERSION"
+
+          echo "git_ref=$GIT_REF" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "package_version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Clone SkiaSharp
+        run: |
+          git clone --recursive --branch "${{ steps.meta.outputs.git_ref }}" \
+            https://github.com/mono/SkiaSharp.git src
+
+      - name: GN/Ninja cross build
+        working-directory: src
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          GN_ARGS='
+            is_debug=false
+            is_official_build=true
+            target_os="linux"
+            target_cpu="ppc64"
+            cc="powerpc64le-linux-gnu-gcc"
+            cxx="powerpc64le-linux-gnu-g++"
+            ar="powerpc64le-linux-gnu-ar"
+            skia_enable_tools=false
+            skia_enable_gpu=true
+            skia_use_vulkan=true
+            skia_use_egl=true
+            skia_use_x11=true
+            skia_use_gl=true
+            skia_use_fontconfig=true
+            skia_use_freetype=true
+            skia_use_system_freetype2=false
+            skia_use_system_libjpeg_turbo=false
+            skia_use_system_libpng=false
+            skia_use_system_libwebp=false
+            skia_use_system_zlib=false
+            skia_use_system_icu=false
+            extra_cflags=[
+              "--sysroot=/usr/powerpc64le-linux-gnu",
+              "-fPIC"
+            ]
+            extra_cflags_cc=[
+              "--sysroot=/usr/powerpc64le-linux-gnu",
+              "-fPIC"
+            ]
+            extra_ldflags=[
+              "--sysroot=/usr/powerpc64le-linux-gnu"
+            ]
+          '
+
+          cd externals/skia
+          python3 tools/git-sync-deps
+
+          if [ ! -f third_party/externals/icu/scripts/make_data_assembly.py ]; then
+            rm -rf third_party/externals/icu
+            git clone --depth 1 https://chromium.googlesource.com/chromium/deps/icu.git third_party/externals/icu
+          fi
+
+          test -f third_party/externals/icu/scripts/make_data_assembly.py
+
+          python3 bin/fetch-gn
+          ./bin/gn gen ../../out/linux-ppc64le --args="$GN_ARGS"
+          ninja -C ../../out/linux-ppc64le -j1 -v
+
+      - name: Find libSkiaSharp.so
+        id: findlib
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src -name 'libSkiaSharp.so' -type f -print
+
+          LIB="$(find src -name 'libSkiaSharp.so' -type f | head -n 1)"
+          if [[ -z "$LIB" ]]; then
+            echo "libSkiaSharp.so not found"
+            exit 1
+          fi
+
+          mkdir -p "pkg/runtimes/${RID}/native"
+          cp "$LIB" "pkg/runtimes/${RID}/native/libSkiaSharp.so"
+          ${STRIP} "pkg/runtimes/${RID}/native/libSkiaSharp.so" || true
+
+          file "pkg/runtimes/${RID}/native/libSkiaSharp.so"
+          powerpc64le-linux-gnu-readelf -h "pkg/runtimes/${RID}/native/libSkiaSharp.so"
+
+      - name: Create NuGet package project
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > pkg/${PKG_ID}.nuspec <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <package>
+            <metadata>
+              <id>${PKG_ID}</id>
+              <version>${{ steps.meta.outputs.package_version }}</version>
+              <authors>Repobot</authors>
+              <owners>${{ github.repository_owner }}</owners>
+              <license type="expression">MIT</license>
+              <projectUrl>https://github.com/mono/SkiaSharp</projectUrl>
+              <repository type="git" url="https://github.com/mono/SkiaSharp" commit="$(cd src && git rev-parse HEAD)" />
+              <description>Unofficial SkiaSharp Linux native assets for linux-ppc64le, built from mono/SkiaSharp ${{ steps.meta.outputs.git_ref }}.</description>
+              <tags>skiasharp skia native linux ppc64le powerpc</tags>
+              <dependencies>
+                <group targetFramework="net6.0" />
+              </dependencies>
+            </metadata>
+            <files>
+              <file src="runtimes/linux-ppc64le/native/libSkiaSharp.so" target="runtimes/linux-ppc64le/native/libSkiaSharp.so" />
+            </files>
+          </package>
+          EOF
+
+          cd pkg
+          dotnet nuget pack ${PKG_ID}.nuspec \
+            --output ../artifacts \
+            --verbosity normal
+
+      - name: Upload nupkg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkiaSharp.NativeAssets.Linux-${{ steps.meta.outputs.package_version }}
+          path: artifacts/*.nupkg
+
+      - name: Publish to GitHub Packages
+        if: inputs.publish_github_packages == true
+        run: |
+          dotnet nuget push "artifacts/*.nupkg" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}"
